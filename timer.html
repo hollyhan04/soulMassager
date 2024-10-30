@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Clock</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+
+        #timeInput {
+            width: 120px;
+        }
+
+        #setButton,
+        #stopButton {
+            padding: 10px;
+            font-size: 16px;
+            margin: 10px;
+        }
+
+        #countdown {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Alarm Clock</h1>
+    <label for="timeInput">Set Alarm Time (HH:MM:SS): </label>
+    <input type="text" id="timeInput" placeholder="00:00:00">
+    <br>
+    <button id="setButton">Set Alarm</button>
+    <button id="stopButton">Stop Alarm</button>
+    <div id="countdown"></div>
+
+    <script>
+        $(document).ready(function () {
+            let alarmTime;
+            let countdownInterval;
+
+            $("#setButton").click(function () {
+                const timeInput = $("#timeInput").val();
+                setAlarm(timeInput);
+            });
+
+            $("#stopButton").click(function () {
+                stopAlarm();
+            });
+
+            function setAlarm(timeInput) {
+                alarmTime = new Date();
+                const timeArray = timeInput.split(":");
+                alarmTime.setHours(parseInt(timeArray[0], 10));
+                alarmTime.setMinutes(parseInt(timeArray[1], 10));
+                alarmTime.setSeconds(parseInt(timeArray[2], 10));
+
+                updateCountdown();
+                countdownInterval = setInterval(updateCountdown, 1000);
+            }
+
+            function stopAlarm() {
+                clearInterval(countdownInterval);
+                $("#countdown").text("Time's up!");
+            }
+
+            function updateCountdown() {
+                const currentTime = new Date();
+                const timeDifference = alarmTime - currentTime;
+
+                if (timeDifference <= 0) {
+                    $("#countdown").text("Time's up!");
+                    stopAlarm();
+
+                    // Send signal to Arduino
+                    sendSignalToArduino();
+                } else {
+                    const hours = Math.floor(timeDifference / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+                    const formattedTime = pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
+                    $("#countdown").text("Time remaining: " + formattedTime);
+
+                }
+            }
+
+
+            function sendSignalToArduino() {
+                // Make an HTTP request to your Arduino server
+                fetch('http://172.20.10.2/ACTIVE').then(
+                    setTimeout(
+                        () => { fetch('http://172.20.10.2/TURNOFF') },
+                        3000
+                    )
+                )
+
+                $.ajax({
+                    url: 'http://172.20.10.3/times-up', 
+                    method: 'GET',
+                    success: function (response) {
+                        console.log('Signal sent to Arduino:', response);
+                    },
+                    error: function (error) {
+                        console.error('Error sending signal to Arduino:', error);
+                    }
+                });
+            }
+
+            function pad(number) {
+                return (number < 10 ? "0" : "") + number;
+            }
+        });
+    </script>
+</body>
+
+</html>
